@@ -9,3 +9,20 @@ global:
   logging:
     yml:
       - '{"one": "two"}'
+  logstash:
+    config:
+      inputs:
+        udp:
+          - '{"port": 5000, "codec": "json"}'
+        redis:
+          - '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
+      filters:
+        grok:
+          - '{"match": "[\"message\", \"%{LOGLEVEL:loglevel}\"]"}' 
+      outputs:
+        redis:
+          - '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
+        elasticsearch:
+          - '{"host": "elasticsearch", "protocol": "http", "index": "\"logstash-demo-%{+YYYY.MM.dd}\""}'
+  anotherKey:
+     - "Hello"

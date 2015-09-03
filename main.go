@@ -34,7 +34,7 @@ func (kh *KeyHole) GenerateKeyValues() (map[string]string, error) {
 	keys := make(map[string]string)
 
 	for key := range kh.Global {
-		kh.traverse(key.(string), kh.Global[key])
+		kh.traverse(strings.Join([]string{"", key.(string)}, "/"), kh.Global[key])
 	}
 
 	return keys, nil
@@ -44,7 +44,7 @@ func (kh *KeyHole) traverse(root string, data interface{}) {
 	switch reflect.TypeOf(data).Kind() {
 	case reflect.Map:
 		for _, k := range traverseMapForKeys(data.(map[interface{}]interface{})) {
-			kh.traverse(strings.Join([]string{"", root, k}, "/"), data.(map[interface{}]interface{})[k])
+			kh.traverse(strings.Join([]string{root, k}, "/"), data.(map[interface{}]interface{})[k])
 		}
 	case reflect.Slice:
 		for i, item := range data.([]interface{}) {
