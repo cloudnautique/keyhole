@@ -7,59 +7,76 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/coreos/go-etcd/etcd"
 	"gopkg.in/yaml.v2"
 )
 
-type KeyHole struct {
-	Global    map[interface{}]interface{} `yaml:"global,omitempty"`
-	Services  map[interface{}]interface{} `yaml:"services,omitempty"`
-	KeyValues map[string]string           `yaml:"keyvalues,omitempty"`
+type KeySpace struct {
+	RawData   map[interface{}]interface{}
+	KeyValues map[string]string
+}
+
+func (kh *KeySpace) sendToEtcd() error {
+	machines := []string{"http://192.168.99.100:2379"}
+	client := etcd.NewClient(machines)
+
+	for key, value := range kh.KeyValues {
+		if _, err := client.Set(key, value, 0); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func main() {
-	m := &KeyHole{}
+	keySpace := &KeySpace{}
 
 	yamlData, err := ioutil.ReadFile("./test.yml")
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
 
-	err = yaml.Unmarshal(yamlData, m)
-	m.KeyValues = make(map[string]string)
-	m.GenerateKeyValues()
-	err = m.PrintKeys()
+	keySpace.RawData = make(map[interface{}]interface{})
+	keySpace.KeyValues = make(map[string]string)
+	err = yaml.Unmarshal(yamlData, &keySpace.RawData)
+
+	keySpace.GenerateKeyValues()
+	err = keySpace.PrintKeys()
+	err = keySpace.sendToEtcd()
 }
 
-func (kh *KeyHole) GenerateKeyValues() (map[string]string, error) {
+func (kh *KeySpace) GenerateKeyValues() (map[string]string, error) {
 	keys := make(map[string]string)
 
-	for key := range kh.Global {
-		kh.traverse(strings.Join([]string{"", key.(string)}, "/"), kh.Global[key])
+	for key := range kh.RawData {
+		kh.traverse(strings.Join([]string{"", key.(string)}, "/"), kh.RawData[key])
 	}
 
 	return keys, nil
 }
 
-func (kh *KeyHole) traverse(root string, data interface{}) {
-	switch reflect.TypeOf(data).Kind() {
-	case reflect.Map:
+func (kh *KeySpace) traverse(root string, data interface{}) {
+	switch data.(type) {
+	case map[interface{}]interface{}:
 		for _, k := range traverseMapForKeys(data.(map[interface{}]interface{})) {
 			kh.traverse(strings.Join([]string{root, k}, "/"), data.(map[interface{}]interface{})[k])
 		}
-	case reflect.Slice:
+	case []interface{}:
 		for i, item := range data.([]interface{}) {
-			kh.KeyValues[strings.Join([]string{root, strconv.Itoa(i)}, "/")] = item.(string)
-			//fmt.Printf("Slice Root: %v\n", strings.Join([]string{root, strconv.Itoa(i)}, "/"))
-			//fmt.Printf("Item: %v\n", item)
+			kh.traverse(strings.Join([]string{root, strconv.Itoa(i)}, "/"), item)
 		}
+	case string:
+		kh.KeyValues[root] = data.(string)
+	case int:
+		kh.KeyValues[root] = strconv.Itoa(data.(int))
 	default:
-		fmt.Printf("default: %s\n", reflect.TypeOf(data).Kind())
+		fmt.Printf("default: %s\n", reflect.TypeOf(data))
 	}
 }
 
-func (kh *KeyHole) PrintKeys() error {
+func (kh *KeySpace) PrintKeys() error {
 	for key := range kh.KeyValues {
-		fmt.Printf("%s\n", strings.Join([]string{key, kh.KeyValues[key]}, " = "))
+		fmt.Printf("%s\n", strings.Join([]string{key, kh.KeyValues[key]}, "="))
 	}
 	return nil
 }

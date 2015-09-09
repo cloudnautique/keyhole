@@ -1,28 +1,41 @@
-global:
-  elasticsearch:
-    yml:
-      - '{"cluster.name": "logs"}'
-      - '{"node.name": "${HOSTNAME}"}'
-      - '{"bootstrap.mlockall": "true"}'
-      - '{"discovery.zen.ping.multicast.enabled": "false"}'
-      - '{"discovery.zen.ping.unicast.hosts": ["es-masters"]}'
-  logging:
-    yml:
-      - '{"one": "two"}'
-  logstash:
-    config:
-      inputs:
-        udp:
-          - '{"port": 5000, "codec": "json"}'
-        redis:
-          - '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
-      filters:
-        grok:
-          - '{"match": "[\"message\", \"%{LOGLEVEL:loglevel}\"]"}' 
-      outputs:
-        redis:
-          - '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
-        elasticsearch:
-          - '{"host": "elasticsearch", "protocol": "http", "index": "\"logstash-demo-%{+YYYY.MM.dd}\""}'
-  anotherKey:
-     - "Hello"
+elasticsearch:
+  yml:
+    - '{"cluster.name": "logs"}'
+    - '{"node.name": "${HOSTNAME}"}'
+    - '{"bootstrap.mlockall": "true"}'
+    - '{"discovery.zen.ping.multicast.enabled": "false"}'
+    - '{"discovery.zen.ping.unicast.hosts": ["es-masters"]}'
+logging:
+  yml:
+    - '{"one": "two"}'
+logstash:
+  config:
+    inputs:
+      udp:
+        - '{"port": 5000, "codec": "json"}'
+      redis:
+        - '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
+    filters:
+      conditionals:
+        - condition: "If hello"
+          grok:
+            - '{"one":"two"}'
+        - value: "is"
+        - othervalue: 1
+      grok:
+        - '{"match": "[\"message\", \"%{LOGLEVEL:loglevel}\"]"}' 
+    outputs:
+      redis:
+        - '{"host": "redis", "port": "6379", "data_type": "list", "key": "logstash"}'
+      elasticsearch:
+        - '{"host": "elasticsearch", "protocol": "http", "index": "\"logstash-demo-%{+YYYY.MM.dd}\""}'
+anotherKey:
+  - "Hello"
+services:
+  apache:
+    10.132.249.206: '10.132.249.206:8888'
+    10.132.249.212: '10.132.249.212:8888'
+nginx:
+  domain: 'example.com'
+  root: '/var/www/example_dotcom'
+  worker_processes: '2'
